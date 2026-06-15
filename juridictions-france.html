@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Juridictions françaises — Outil de révision</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+
+    header {
+      background: linear-gradient(135deg, #1e3a5f 0%, #2d6a9f 100%);
+      padding: 24px 32px;
+      text-align: center;
+      border-bottom: 2px solid #3b82f6;
+    }
+    header h1 { font-size: 1.8rem; font-weight: 700; color: #fff; }
+    header p { color: #93c5fd; margin-top: 6px; font-size: 0.95rem; }
+
+    nav {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      padding: 16px;
+      flex-wrap: wrap;
+      background: #0f172a;
+      border-bottom: 1px solid #1e293b;
+    }
+    nav button {
+      padding: 8px 18px;
+      border: 2px solid #334155;
+      border-radius: 20px;
+      background: #1e293b;
+      color: #94a3b8;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    nav button:hover, nav button.active {
+      background: #3b82f6;
+      border-color: #3b82f6;
+      color: #fff;
+    }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+
+    /* ── SCHEMA VIEW ── */
+    .schema-wrapper { overflow-x: auto; }
+    .schema {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+      min-width: 700px;
+    }
+
+    .level {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      width: 100%;
+      position: relative;
+    }
+
+    .level-label {
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #64748b;
+      width: 90px;
+      text-align: right;
+      padding-right: 12px;
+    }
+
+    .connector {
+      height: 30px;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .connector::after {
+      content: '';
+      display: block;
+      width: 2px;
+      height: 100%;
+      background: #334155;
+    }
+
+    .node {
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      text-align: center;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all 0.2s;
+      min-width: 130px;
+      position: relative;
+    }
+    .node:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.4); }
+
+    .node.cour-cassation { background: #1d4ed8; border-color: #3b82f6; color: #fff; }
+    .node.conseil-etat  { background: #7c3aed; border-color: #a78bfa; color: #fff; }
+    .node.cour-appel    { background: #0369a1; border-color: #38bdf8; color: #fff; }
+    .node.cour-admin-appel { background: #6d28d9; border-color: #c4b5fd; color: #fff; }
+    .node.judiciaire-first { background: #065f46; border-color: #34d399; color: #fff; }
+    .node.admin-first   { background: #4c1d95; border-color: #8b5cf6; color: #fff; }
+    .node.special       { background: #92400e; border-color: #fbbf24; color: #fff; }
+    .node.constit       { background: #7f1d1d; border-color: #f87171; color: #fff; }
+
+    .badge {
+      display: inline-block;
+      font-size: 0.65rem;
+      padding: 1px 5px;
+      border-radius: 4px;
+      margin-top: 3px;
+      background: rgba(255,255,255,0.15);
+    }
+
+    /* ── CARDS VIEW ── */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 16px;
+    }
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border-left: 4px solid;
+    }
+    .card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+    .card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
+    .card .cat { font-size: 0.72rem; text-transform: uppercase; font-weight: 700; letter-spacing: 0.08em; opacity: 0.7; margin-bottom: 8px; }
+    .card p { font-size: 0.85rem; color: #94a3b8; line-height: 1.5; }
+    .card .tags { margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
+    .card .tag { font-size: 0.7rem; padding: 2px 8px; border-radius: 12px; background: rgba(255,255,255,0.08); color: #cbd5e1; }
+
+    /* ── QUIZ VIEW ── */
+    .quiz-wrapper { max-width: 680px; margin: 0 auto; }
+    .quiz-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .quiz-progress { font-size: 0.85rem; color: #64748b; }
+    .quiz-score { font-weight: 700; color: #34d399; font-size: 1rem; }
+    .quiz-card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 16px;
+      padding: 32px;
+      min-height: 200px;
+    }
+    .quiz-question { font-size: 1.1rem; font-weight: 600; margin-bottom: 24px; line-height: 1.5; }
+    .quiz-options { display: flex; flex-direction: column; gap: 10px; }
+    .quiz-option {
+      padding: 12px 18px;
+      border: 2px solid #334155;
+      border-radius: 8px;
+      background: #0f172a;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.15s;
+      text-align: left;
+    }
+    .quiz-option:hover:not(:disabled) { border-color: #3b82f6; background: #1e3a5f; }
+    .quiz-option.correct  { border-color: #34d399; background: #064e3b; color: #6ee7b7; }
+    .quiz-option.wrong    { border-color: #f87171; background: #450a0a; color: #fca5a5; }
+    .quiz-option:disabled { cursor: default; }
+    .quiz-feedback {
+      margin-top: 20px;
+      padding: 14px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      display: none;
+    }
+    .quiz-feedback.show { display: block; }
+    .quiz-feedback.ok  { background: #064e3b; border: 1px solid #34d399; color: #6ee7b7; }
+    .quiz-feedback.ko  { background: #450a0a; border: 1px solid #f87171; color: #fca5a5; }
+    .quiz-next {
+      margin-top: 16px;
+      padding: 10px 24px;
+      background: #3b82f6;
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+      display: none;
+    }
+    .quiz-next.show { display: inline-block; }
+    .quiz-end { text-align: center; padding: 40px 0; }
+    .quiz-end h2 { font-size: 2rem; margin-bottom: 12px; }
+    .quiz-end p { color: #94a3b8; margin-bottom: 24px; }
+    .quiz-restart {
+      padding: 12px 28px;
+      background: #3b82f6;
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+
+    /* ── DETAIL MODAL ── */
+    .overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.75);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .overlay.open { display: flex; }
+    .modal {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 16px;
+      padding: 32px;
+      max-width: 620px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      position: relative;
+    }
+    .modal h2 { font-size: 1.3rem; font-weight: 700; margin-bottom: 4px; }
+    .modal .modal-cat { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.6; margin-bottom: 16px; }
+    .modal-close {
+      position: absolute;
+      top: 16px; right: 16px;
+      background: #334155;
+      border: none;
+      color: #fff;
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 1rem;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .modal-section { margin-top: 16px; }
+    .modal-section h4 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; margin-bottom: 6px; }
+    .modal-section p, .modal-section li { font-size: 0.9rem; color: #cbd5e1; line-height: 1.6; }
+    .modal-section ul { padding-left: 18px; }
+    .modal-section li { margin-bottom: 4px; }
+    .moyen span { display: inline-block; background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 4px 10px; font-size: 0.82rem; margin: 3px; }
+
+    /* ── MEMO VIEW ── */
+    .memo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 640px) { .memo-grid { grid-template-columns: 1fr; } }
+    .memo-box {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .memo-box h3 { font-size: 0.9rem; font-weight: 700; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #334155; }
+    .memo-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 6px 0; border-bottom: 1px solid #0f172a; font-size: 0.82rem; gap: 8px; }
+    .memo-row:last-child { border-bottom: none; }
+    .memo-row .k { color: #94a3b8; flex: 1; }
+    .memo-row .v { color: #e2e8f0; font-weight: 600; text-align: right; flex: 1; }
+
+    .section { display: none; }
+    .section.active { display: block; }
+
+    .color-judiciaire { border-left-color: #34d399; }
+    .color-administratif { border-left-color: #a78bfa; }
+    .color-constitutionnel { border-left-color: #f87171; }
+    .color-special { border-left-color: #fbbf24; }
+
+    .tip {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-left: 4px solid #3b82f6;
+      border-radius: 8px;
+      padding: 14px 18px;
+      font-size: 0.85rem;
+      color: #93c5fd;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Juridictions françaises</h1>
+  <p>Outil de révision — Instances et tribunaux</p>
+</header>
+
+<nav>
+  <button class="active" onclick="showSection('schema')">Schéma hiérarchique</button>
+  <button onclick="showSection('cards')">Fiches détaillées</button>
+  <button onclick="showSection('quiz')">Quiz</button>
+  <button onclick="showSection('memo')">Mémo rapide</button>
+</nav>
+
+<div class="container">
+
+  <!-- ══════════════════════ SCHEMA ══════════════════════ -->
+  <div id="section-schema" class="section active">
+    <div class="tip">💡 Cliquez sur une juridiction pour voir sa fiche détaillée.</div>
+    <div class="schema-wrapper">
+      <div class="schema">
+
+        <!-- Conseil constitutionnel (hors hiérarchie classique) -->
+        <div class="level" style="margin-bottom:8px;">
+          <div class="node constit" onclick="openModal('conseil-constitutionnel')" title="Conseil constitutionnel">
+            Conseil constitutionnel
+            <div><span class="badge">hors hiérarchie</span></div>
+          </div>
+        </div>
+
+        <div style="display:flex;width:100%;justify-content:center;gap:80px;align-items:flex-start;margin-top:20px;">
+
+          <!-- Ordre JUDICIAIRE -->
+          <div style="display:flex;flex-direction:column;align-items:center;gap:0;">
+            <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#34d399;margin-bottom:10px;">Ordre judiciaire</div>
+
+            <div class="node cour-cassation" onclick="openModal('cour-cassation')">
+              Cour de cassation
+              <div><span class="badge">3ᵉ degré</span></div>
+            </div>
+            <div class="connector"></div>
+
+            <div class="node cour-appel" onclick="openModal('cour-appel')">
+              Cour d'appel
+              <div><span class="badge">2ᵉ degré</span></div>
+            </div>
+            <div class="connector"></div>
+
+            <!-- 1er degré judiciaire -->
+            <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
+              <div class="node judiciaire-first" onclick="openModal('tribunal-judiciaire')" style="font-size:0.75rem;min-width:110px;">
+                TJ<br/><span class="badge">civil + pénal</span>
+              </div>
+              <div class="node judiciaire-first" onclick="openModal('conseil-prud-hommes')" style="font-size:0.75rem;min-width:110px;">
+                CPH<br/><span class="badge">prud'homal</span>
+              </div>
+              <div class="node judiciaire-first" onclick="openModal('tribunal-commerce')" style="font-size:0.75rem;min-width:110px;">
+                Trib. Commerce<br/><span class="badge">commercial</span>
+              </div>
+              <div class="node judiciaire-first" onclick="openModal('tribunal-correctionnel')" style="font-size:0.75rem;min-width:110px;">
+                Tribunal<br/>correctionnel<br/><span class="badge">pénal</span>
+              </div>
+              <div class="node judiciaire-first" onclick="openModal('cour-assises')" style="font-size:0.75rem;min-width:110px;">
+                Cour d'assises<br/><span class="badge">crimes</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Ordre ADMINISTRATIF -->
+          <div style="display:flex;flex-direction:column;align-items:center;gap:0;">
+            <div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#a78bfa;margin-bottom:10px;">Ordre administratif</div>
+
+            <div class="node conseil-etat" onclick="openModal('conseil-etat')">
+              Conseil d'État
+              <div><span class="badge">3ᵉ degré</span></div>
+            </div>
+            <div class="connector"></div>
+
+            <div class="node cour-admin-appel" onclick="openModal('cour-administrative-appel')">
+              Cour admin. d'appel
+              <div><span class="badge">2ᵉ degré</span></div>
+            </div>
+            <div class="connector"></div>
+
+            <div class="node admin-first" onclick="openModal('tribunal-administratif')">
+              Tribunal administratif
+              <div><span class="badge">1ᵉʳ degré</span></div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Tribunal des conflits -->
+        <div style="margin-top:28px;text-align:center;">
+          <div style="font-size:0.72rem;color:#64748b;margin-bottom:6px;">Régulateur des deux ordres</div>
+          <div class="node special" onclick="openModal('tribunal-conflits')" style="display:inline-block;min-width:200px;">
+            Tribunal des conflits
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════ CARDS ══════════════════════ -->
+  <div id="section-cards" class="section">
+    <div class="cards-grid" id="cards-grid"></div>
+  </div>
+
+  <!-- ══════════════════════ QUIZ ══════════════════════ -->
+  <div id="section-quiz" class="section">
+    <div class="quiz-wrapper">
+      <div id="quiz-container"></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════ MEMO ══════════════════════ -->
+  <div id="section-memo" class="section">
+    <div class="memo-grid">
+
+      <div class="memo-box">
+        <h3 style="color:#34d399;">⚖ Ordre judiciaire</h3>
+        <div class="memo-row"><span class="k">Sommet</span><span class="v">Cour de cassation</span></div>
+        <div class="memo-row"><span class="k">2ᵉ degré</span><span class="v">Cour d'appel</span></div>
+        <div class="memo-row"><span class="k">Civil général</span><span class="v">Tribunal judiciaire (TJ)</span></div>
+        <div class="memo-row"><span class="k">Pénal délit</span><span class="v">Tribunal correctionnel</span></div>
+        <div class="memo-row"><span class="k">Pénal crime</span><span class="v">Cour d'assises</span></div>
+        <div class="memo-row"><span class="k">Pénal contravent.</span><span class="v">Tribunal de police</span></div>
+        <div class="memo-row"><span class="k">Social</span><span class="v">Conseil prud'hommes</span></div>
+        <div class="memo-row"><span class="k">Commercial</span><span class="v">Tribunal de commerce</span></div>
+        <div class="memo-row"><span class="k">Mineur pénal</span><span class="v">Tribunal pour enfants</span></div>
+      </div>
+
+      <div class="memo-box">
+        <h3 style="color:#a78bfa;">🏛 Ordre administratif</h3>
+        <div class="memo-row"><span class="k">Sommet</span><span class="v">Conseil d'État</span></div>
+        <div class="memo-row"><span class="k">2ᵉ degré</span><span class="v">Cour admin. d'appel</span></div>
+        <div class="memo-row"><span class="k">1ᵉʳ degré</span><span class="v">Tribunal administratif</span></div>
+        <div class="memo-row"><span class="k">Finances pub.</span><span class="v">Cour des comptes / CRC</span></div>
+        <div class="memo-row"><span class="k">Référé admin.</span><span class="v">Juge des référés (TA/CE)</span></div>
+      </div>
+
+      <div class="memo-box">
+        <h3 style="color:#f87171;">📜 Conseil constitutionnel</h3>
+        <div class="memo-row"><span class="k">Membres</span><span class="v">9 membres + anciens Présidents</span></div>
+        <div class="memo-row"><span class="k">Mandat</span><span class="v">9 ans, non renouvelable</span></div>
+        <div class="memo-row"><span class="k">Contrôle a priori</span><span class="v">Art. 61 Constitution</span></div>
+        <div class="memo-row"><span class="k">QPC (a posteriori)</span><span class="v">Art. 61-1 (depuis 2010)</span></div>
+        <div class="memo-row"><span class="k">Présidence</span><span class="v">Nommé par le PR</span></div>
+      </div>
+
+      <div class="memo-box">
+        <h3 style="color:#fbbf24;">🔀 Juridictions spéciales</h3>
+        <div class="memo-row"><span class="k">Conflit d'ordre</span><span class="v">Tribunal des conflits</span></div>
+        <div class="memo-row"><span class="k">Finances pub.</span><span class="v">Cour des comptes</span></div>
+        <div class="memo-row"><span class="k">Comptes locaux</span><span class="v">Chambre régionale des comptes</span></div>
+        <div class="memo-row"><span class="k">Discipline magistrats</span><span class="v">CSM (Conseil sup. magistrature)</span></div>
+        <div class="memo-row"><span class="k">Sécurité sociale</span><span class="v">Pôle social du TJ</span></div>
+      </div>
+
+      <div class="memo-box" style="grid-column: 1 / -1;">
+        <h3 style="color:#38bdf8;">🧠 Astuces mnémotechniques</h3>
+        <div class="memo-row"><span class="k">"CC juge la loi, CE juge l'État"</span><span class="v">Conseil constit. vs Conseil d'État</span></div>
+        <div class="memo-row"><span class="k">"TC = arbitre entre les deux ordres"</span><span class="v">Tribunal des conflits</span></div>
+        <div class="memo-row"><span class="k">"Cass. ne juge pas les faits, le fond"</span><span class="v">Cour de cassation = juge du droit</span></div>
+        <div class="memo-row"><span class="k">"CPH = paritaire"</span><span class="v">Moitié employeurs, moitié salariés</span></div>
+        <div class="memo-row"><span class="k">"Assises = jury populaire"</span><span class="v">6 jurés + 3 magistrats en appel</span></div>
+        <div class="memo-row"><span class="k">"QPC filtrée 2x"</span><span class="v">TJ/TA → CA/CE → Conseil constit.</span></div>
+      </div>
+
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<!-- ══════════════════════ MODAL ══════════════════════ -->
+<div class="overlay" id="overlay" onclick="closeModal(event)">
+  <div class="modal" id="modal">
+    <button class="modal-close" onclick="closeModal(true)">✕</button>
+    <div id="modal-content"></div>
+  </div>
+</div>
+
+<script>
+// ════════════ DATA ════════════
+const jurisdictions = {
+  'cour-cassation': {
+    name: 'Cour de cassation',
+    cat: 'Ordre judiciaire — 3ᵉ degré (juge du droit)',
+    color: '#3b82f6',
+    resume: 'Plus haute juridiction de l\'ordre judiciaire. Elle ne rejuge pas les faits mais vérifie la bonne application du droit par les juges du fond.',
+    siege: 'Paris (Palais de Justice)',
+    composition: ['Chambres civiles (1ʳᵉ, 2ᵉ, 3ᵉ)', 'Chambre commerciale', 'Chambre sociale', 'Chambre criminelle', 'Assemblée plénière (formation solennelle)', 'Chambre mixte'],
+    competences: [
+      'Pourvoi en cassation contre arrêts des Cours d\'appel',
+      'Contrôle la légalité des décisions (erreur de droit, violation de la loi)',
+      'Peut casser avec ou sans renvoi',
+      'Assure l\'unité du droit sur tout le territoire'
+    ],
+    astuce: 'La Cour de cassation ne reexamine JAMAIS les faits. Elle casse (annule) ou rejette le pourvoi. Si elle casse, elle renvoie devant une autre Cour d\'appel (ou la même autrement composée).'
+  },
+  'conseil-etat': {
+    name: 'Conseil d\'État',
+    cat: 'Ordre administratif — 3ᵉ degré + conseil du gouvernement',
+    color: '#a78bfa',
+    resume: 'Double fonction : juridiction administrative suprême ET conseiller juridique du gouvernement. Il rend des avis sur les projets de loi et de décrets.',
+    siege: 'Paris (Palais-Royal)',
+    composition: ['Section du contentieux (juridiction)', 'Sections administratives (conseil)', 'Assemblée du contentieux (plénière)'],
+    competences: [
+      'Juge en 1ᵉʳ et dernier ressort certains recours (décrets, actes des ministres)',
+      'Juge en cassation les arrêts des Cours admin. d\'appel',
+      'Émet des avis sur les projets de loi/décrets',
+      'Référé-liberté et référé-suspension'
+    ],
+    astuce: 'À retenir : CE = juge de l\'État mais aussi conseiller de l\'État. Ne pas confondre avec le Conseil constitutionnel qui contrôle la loi.'
+  },
+  'cour-appel': {
+    name: 'Cour d\'appel',
+    cat: 'Ordre judiciaire — 2ᵉ degré',
+    color: '#38bdf8',
+    resume: 'Réexamine en fait ET en droit les jugements rendus en 1ᵉʳ degré par les juridictions judiciaires de son ressort.',
+    siege: '36 Cours d\'appel en France métropolitaine + outre-mer',
+    composition: ['Chambres civiles', 'Chambre sociale', 'Chambre commerciale', 'Chambre correctionnelle', 'Chambre des mineurs'],
+    competences: [
+      'Appel des jugements des TJ, tribunaux de commerce, CPH',
+      'Réexamine les faits et le droit (effet dévolutif)',
+      'Peut confirmer, infirmer ou réformer le jugement',
+      'Compétente pour appels des décisions prud\'homales'
+    ],
+    astuce: 'La Cour d\'appel est le 2ᵉ degré de juridiction. Elle rejuge tout. Après elle, seule la Cour de cassation est possible — mais uniquement sur le droit.'
+  },
+  'cour-administrative-appel': {
+    name: 'Cour administrative d\'appel',
+    cat: 'Ordre administratif — 2ᵉ degré',
+    color: '#c4b5fd',
+    resume: 'Réexamine les jugements des tribunaux administratifs. Il en existe 9 en France.',
+    siege: 'Paris, Versailles, Douai, Nancy, Lyon, Marseille, Bordeaux, Nantes, Toulouse',
+    composition: ['Chambres thématiques (urbanisme, fiscalité, fonction publique…)'],
+    competences: [
+      'Appel contre les jugements des tribunaux administratifs',
+      'Réexamine en fait et en droit',
+      'Ses arrêts peuvent faire l\'objet d\'un pourvoi en cassation devant le Conseil d\'État'
+    ],
+    astuce: '9 CAA en France. Elles sont l\'équivalent administratif des Cours d\'appel judiciaires.'
+  },
+  'tribunal-judiciaire': {
+    name: 'Tribunal judiciaire (TJ)',
+    cat: 'Ordre judiciaire — 1ᵉʳ degré civil',
+    color: '#34d399',
+    resume: 'Juridiction de droit commun en matière civile depuis 2020 (fusion du TGI et du TI). Compétent pour toutes les affaires civiles sauf exceptions.',
+    siege: 'Un par département au moins (164 TJ)',
+    composition: ['Juge aux affaires familiales (JAF)', 'Juge de l\'exécution (JEX)', 'Juge des contentieux de la protection (JCP)', 'Tribunal correctionnel (chambre pénale)'],
+    competences: [
+      'Matière civile : > 10 000 € ou compétence exclusive (état civil, immobilier, famille…)',
+      'Juge aux affaires familiales : divorce, autorité parentale',
+      'Juge de l\'exécution : saisies',
+      'Contentieux de la protection : surendettement, tutelles',
+      'Chambre correctionnelle : délits'
+    ],
+    astuce: 'Depuis le 1ᵉʳ janvier 2020, le TGI et le TI ont fusionné en Tribunal judiciaire. Le TJ est le juge de droit commun = compétent si aucune autre juridiction n\'est désignée.'
+  },
+  'tribunal-administratif': {
+    name: 'Tribunal administratif (TA)',
+    cat: 'Ordre administratif — 1ᵉʳ degré',
+    color: '#8b5cf6',
+    resume: 'Juridiction administrative de droit commun en 1ᵉʳ instance. 42 tribunaux administratifs en France.',
+    siege: '42 TA répartis sur le territoire',
+    composition: ['Juges administratifs professionnels', 'Juge des référés'],
+    competences: [
+      'Recours pour excès de pouvoir (REP) contre actes administratifs',
+      'Recours de plein contentieux (contrats, responsabilité)',
+      'Référé-suspension et référé-liberté',
+      'Litiges entre administrés et administration publique'
+    ],
+    astuce: 'REP = recours pour excès de pouvoir = demander l\'annulation d\'un acte illégal. C\'est LA voie de recours reine devant le TA.'
+  },
+  'conseil-prud-hommes': {
+    name: 'Conseil de prud\'hommes (CPH)',
+    cat: 'Ordre judiciaire — juridiction spécialisée sociale',
+    color: '#34d399',
+    resume: 'Juridiction paritaire composée à parts égales de représentants des employeurs et des salariés, élus. Règle les litiges individuels du travail.',
+    siege: 'Un par arrondissement (210 CPH)',
+    composition: ['Section industrie', 'Section commerce', 'Section agriculture', 'Section activités diverses', 'Section encadrement', '+ juge départiteur (magistrat prof.) en cas de partage des voix'],
+    competences: [
+      'Litiges nés du contrat de travail (licenciement, salaires, rupture…)',
+      'Uniquement contrats de travail privés',
+      'Phase de conciliation obligatoire avant jugement'
+    ],
+    astuce: 'Moyen mnémotechnique : "CPH = conseillers élus, parité employeurs/salariés". Si égalité de voix → départiteur (juge pro). Appel devant la chambre sociale de la Cour d\'appel.'
+  },
+  'tribunal-commerce': {
+    name: 'Tribunal de commerce',
+    cat: 'Ordre judiciaire — juridiction spécialisée commerciale',
+    color: '#34d399',
+    resume: 'Composé de juges élus parmi les commerçants et dirigeants d\'entreprises (juges consulaires). Tranche les litiges commerciaux.',
+    siege: '134 tribunaux de commerce en France',
+    composition: ['Juges consulaires (commerçants élus)', 'Juge-commissaire (procédures collectives)'],
+    competences: [
+      'Litiges entre commerçants (actes de commerce)',
+      'Procédures collectives : sauvegarde, redressement, liquidation judiciaire',
+      'Effets de commerce, sociétés commerciales'
+    ],
+    astuce: 'Juges non professionnels ! Ce sont des commerçants bénévoles élus par leurs pairs. Originalité française. Appel devant la chambre commerciale de la Cour d\'appel.'
+  },
+  'tribunal-correctionnel': {
+    name: 'Tribunal correctionnel',
+    cat: 'Ordre judiciaire — pénal (délits)',
+    color: '#34d399',
+    resume: 'Chambre pénale du Tribunal judiciaire. Juge les délits (infractions passibles de 3 jours à 10 ans d\'emprisonnement).',
+    siege: 'Au sein de chaque Tribunal judiciaire',
+    composition: ['3 juges professionnels (ou 1 juge en formation à juge unique)'],
+    competences: [
+      'Tous les délits (vol, escroquerie, violences, conduite en état d\'ivresse…)',
+      'Peines : emprisonnement jusqu\'à 10 ans, amendes, TIG…',
+      'Prononce aussi sur les intérêts civils (indemnisation des victimes)'
+    ],
+    astuce: 'Trilogie pénale : contraventions → Tribunal de police | délits → Tribunal correctionnel | crimes → Cour d\'assises. À retenir absolument !'
+  },
+  'cour-assises': {
+    name: 'Cour d\'assises',
+    cat: 'Ordre judiciaire — pénal (crimes)',
+    color: '#34d399',
+    resume: 'Juge les crimes (infractions les plus graves, passibles de plus de 10 ans de réclusion). Composée de magistrats ET de jurés populaires.',
+    siege: 'Siège à chaque chef-lieu de département (sessions)',
+    composition: ['3 magistrats professionnels', '6 jurés tirés au sort en 1ᵉʳ instance', '9 jurés en appel (Cour d\'assises d\'appel)', 'Cour d\'assises des mineurs pour crimes commis par mineurs'],
+    competences: [
+      'Crimes : meurtre, viol, braquage, terrorisme…',
+      'Réclusion criminelle : 10 ans minimum, jusqu\'à perpétuité',
+      'Décision prise à la majorité qualifiée (6/9 en 1ʳᵉ instance)'
+    ],
+    astuce: 'Seule juridiction française avec jury populaire. Les jurés délibèrent avec les magistrats. En appel, la CA d\'appel a 9 jurés (et non 6). La décision de 1ᵉʳ degré ne peut pas être aggravée sans initiative de l\'accusation.'
+  },
+  'conseil-constitutionnel': {
+    name: 'Conseil constitutionnel',
+    cat: 'Juridiction constitutionnelle — hors hiérarchie ordinaire',
+    color: '#f87171',
+    resume: 'Veille au respect de la Constitution. Contrôle la constitutionnalité des lois. N\'appartient ni à l\'ordre judiciaire ni à l\'ordre administratif.',
+    siege: 'Paris (2, rue de Montpensier)',
+    composition: ['9 membres nommés (3 par le PR, 3 par le Président de l\'AN, 3 par le Président du Sénat)', 'Mandat : 9 ans non renouvelable', 'Anciens Présidents de la République : membres de droit à vie'],
+    competences: [
+      'Contrôle a priori (art. 61) : lois avant promulgation',
+      'QPC — Question prioritaire de constitutionnalité (art. 61-1) : contrôle a posteriori depuis 2010',
+      'Contrôle des élections présidentielles et législatives',
+      'Constate l\'empêchement du Président de la République',
+      'Vérifie la régularité des référendums'
+    ],
+    astuce: 'Deux voies de saisine : (1) art. 61 = avant la promulgation de la loi, par PR/PM/présidents des assemblées/60 parlementaires. (2) QPC = pendant un procès, un justiciable peut contester une loi déjà en vigueur → filtrée par la Cass. ou le CE avant d\'arriver au CC.'
+  },
+  'tribunal-conflits': {
+    name: 'Tribunal des conflits',
+    cat: 'Juridiction spéciale — arbitre entre les deux ordres',
+    color: '#fbbf24',
+    resume: 'Tranche les conflits de compétence entre l\'ordre judiciaire et l\'ordre administratif. Composé à parité de conseillers de la Cour de cassation et du Conseil d\'État.',
+    siege: 'Paris',
+    composition: ['4 conseillers d\'État + 4 conseillers à la Cour de cassation', 'Présidé alternativement par un ministre de la justice ou… en réalité présidé par l\'un des membres depuis 2015'],
+    competences: [
+      'Conflit positif : deux juridictions se déclarent toutes deux compétentes',
+      'Conflit négatif : chaque ordre se déclare incompétent (déni de justice)',
+      'Peut être saisi par les parties après deux décisions d\'incompétence',
+      'Statue sur les difficultés de compétence soumises par les juridictions'
+    ],
+    astuce: 'Exemple classique : accident de tramway → judiciaire ou administratif ? L\'arrêt Blanco (1873) a posé l\'autonomie du droit administratif. Le Tribunal des conflits règle ces litiges d\'attribution.'
+  }
+};
+
+// ════════════ QUIZ QUESTIONS ════════════
+const allQuestions = [
+  {
+    q: 'Quelle est la plus haute juridiction de l\'ordre judiciaire en France ?',
+    choices: ['Cour d\'appel', 'Cour de cassation', 'Conseil d\'État', 'Conseil constitutionnel'],
+    correct: 1,
+    expl: 'La Cour de cassation est au sommet de l\'ordre judiciaire. Elle contrôle l\'application du droit mais ne rejuge pas les faits.'
+  },
+  {
+    q: 'Quelle juridiction juge les crimes (les infractions les plus graves) en France ?',
+    choices: ['Tribunal correctionnel', 'Tribunal judiciaire', 'Cour d\'assises', 'Cour d\'appel'],
+    correct: 2,
+    expl: 'La trilogie : contraventions → Tribunal de police | délits → Tribunal correctionnel | crimes → Cour d\'assises.'
+  },
+  {
+    q: 'Le Conseil d\'État est la plus haute juridiction de quel ordre ?',
+    choices: ['Judiciaire', 'Administratif', 'Constitutionnel', 'Commercial'],
+    correct: 1,
+    expl: 'Le Conseil d\'État est au sommet de l\'ordre administratif. Il est aussi conseiller juridique du gouvernement.'
+  },
+  {
+    q: 'Quelle est la particularité de la Cour d\'assises par rapport aux autres juridictions pénales ?',
+    choices: ['Elle ne juge que les mineurs', 'Elle comprend des jurés populaires tirés au sort', 'Elle est présidée par un préfet', 'Elle n\'impose jamais de peine d\'emprisonnement'],
+    correct: 1,
+    expl: 'La Cour d\'assises est la seule juridiction française comportant des jurés populaires (6 en 1ʳᵉ instance, 9 en appel), tirés au sort.'
+  },
+  {
+    q: 'Quel tribunal règle les litiges entre les deux ordres de juridiction (judiciaire et administratif) ?',
+    choices: ['Conseil constitutionnel', 'Cour de cassation', 'Tribunal des conflits', 'Conseil d\'État'],
+    correct: 2,
+    expl: 'Le Tribunal des conflits est l\'arbitre entre l\'ordre judiciaire et l\'ordre administratif. Il tranche les conflits de compétence positifs et négatifs.'
+  },
+  {
+    q: 'Combien de membres compte le Conseil constitutionnel (membres nommés) ?',
+    choices: ['6', '9', '12', '15'],
+    correct: 1,
+    expl: '9 membres nommés : 3 par le Président de la République, 3 par le Président de l\'Assemblée nationale, 3 par le Président du Sénat. Mandat de 9 ans non renouvelable.'
+  },
+  {
+    q: 'Le Conseil de prud\'hommes est composé de… ?',
+    choices: ['Magistrats professionnels uniquement', 'Jurés tirés au sort', 'Conseillers élus paritairement (employeurs + salariés)', 'Juges nommés par le ministre'],
+    correct: 2,
+    expl: 'Le CPH est une juridiction paritaire : moitié de représentants des employeurs, moitié de représentants des salariés, tous élus. En cas d\'égalité, un juge départiteur (magistrat pro) tranche.'
+  },
+  {
+    q: 'La QPC (Question prioritaire de constitutionnalité) a été introduite par quelle révision constitutionnelle ?',
+    choices: ['1958', '1999', '2008', '2017'],
+    correct: 2,
+    expl: 'La QPC a été créée par la révision constitutionnelle de 2008 (art. 61-1 de la Constitution) et est entrée en vigueur le 1ᵉʳ mars 2010.'
+  },
+  {
+    q: 'Quelle est la compétence principale du Tribunal de commerce ?',
+    choices: ['Litiges entre particuliers', 'Litiges entre commerçants et actes de commerce + procédures collectives', 'Litiges du droit du travail', 'Contentieux fiscal'],
+    correct: 1,
+    expl: 'Le Tribunal de commerce juge les actes de commerce entre commerçants, les sociétés commerciales, et les procédures collectives (sauvegarde, redressement, liquidation).'
+  },
+  {
+    q: 'Quelle juridiction administrative statue en 1ᵉʳ degré sur les litiges entre les citoyens et l\'administration ?',
+    choices: ['Conseil d\'État', 'Cour administrative d\'appel', 'Tribunal administratif', 'Tribunal judiciaire'],
+    correct: 2,
+    expl: 'Le Tribunal administratif (TA) est la juridiction de droit commun de 1ᵉʳ degré de l\'ordre administratif. Il y en a 42 en France.'
+  },
+  {
+    q: 'Qu\'est-ce qu\'un "conflit positif" devant le Tribunal des conflits ?',
+    choices: ['Deux juridictions se déclarent toutes deux incompétentes', 'Deux juridictions se déclarent toutes deux compétentes', 'Un tribunal annule la décision d\'un autre', 'Une partie gagne en appel après avoir perdu en 1ᵉʳ degré'],
+    correct: 1,
+    expl: 'Le conflit positif survient quand deux juridictions (l\'une judiciaire, l\'autre administrative) se déclarent toutes deux compétentes pour la même affaire. Le Tribunal des conflits tranche.'
+  },
+  {
+    q: 'La Cour de cassation peut-elle réexaminer les faits d\'une affaire ?',
+    choices: ['Oui, toujours', 'Oui, mais seulement en assemblée plénière', 'Non, elle ne juge que la bonne application du droit', 'Oui, si la Cour d\'appel a commis une erreur factuelle'],
+    correct: 2,
+    expl: 'La Cour de cassation est un juge du droit, pas des faits. Elle vérifie que la loi a été correctement appliquée. Elle ne rejuge jamais les faits de l\'affaire.'
+  }
+];
+
+// ════════════ STATE ════════════
+let currentSection = 'schema';
+let quizQuestions = [];
+let quizIndex = 0;
+let quizScore = 0;
+let quizAnswered = false;
+
+// ════════════ RENDER FUNCTIONS ════════════
+function showSection(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById('section-' + id).classList.add('active');
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  currentSection = id;
+  if (id === 'cards') renderCards();
+  if (id === 'quiz') startQuiz();
+}
+
+function renderCards() {
+  const grid = document.getElementById('cards-grid');
+  if (grid.children.length > 0) return;
+  const colorMap = {
+    'cour-cassation': 'judiciaire', 'cour-appel': 'judiciaire',
+    'tribunal-judiciaire': 'judiciaire', 'conseil-prud-hommes': 'judiciaire',
+    'tribunal-commerce': 'judiciaire', 'tribunal-correctionnel': 'judiciaire',
+    'cour-assises': 'judiciaire',
+    'conseil-etat': 'administratif', 'cour-administrative-appel': 'administratif',
+    'tribunal-administratif': 'administratif',
+    'conseil-constitutionnel': 'constitutionnel',
+    'tribunal-conflits': 'special'
+  };
+  Object.entries(jurisdictions).forEach(([id, j]) => {
+    const div = document.createElement('div');
+    div.className = 'card color-' + (colorMap[id] || 'special');
+    div.onclick = () => openModal(id);
+    div.innerHTML = `
+      <div class="cat">${j.cat}</div>
+      <h3>${j.name}</h3>
+      <p>${j.resume}</p>
+      <div class="tags">
+        <span class="tag">Cliquer pour détails</span>
+      </div>
+    `;
+    grid.appendChild(div);
+  });
+}
+
+function startQuiz() {
+  quizQuestions = [...allQuestions].sort(() => Math.random() - 0.5);
+  quizIndex = 0;
+  quizScore = 0;
+  renderQuiz();
+}
+
+function renderQuiz() {
+  const container = document.getElementById('quiz-container');
+  if (quizIndex >= quizQuestions.length) {
+    const pct = Math.round((quizScore / quizQuestions.length) * 100);
+    let emoji = pct >= 80 ? '🎉' : pct >= 50 ? '👍' : '📚';
+    container.innerHTML = `
+      <div class="quiz-end">
+        <h2>${emoji} ${quizScore} / ${quizQuestions.length}</h2>
+        <p>Score : ${pct}% — ${pct >= 80 ? 'Excellent ! Tu maîtrises bien les juridictions.' : pct >= 50 ? 'Pas mal ! Revois les fiches pour progresser.' : 'Continue tes révisions, tu y arriveras !'}</p>
+        <button class="quiz-restart" onclick="startQuiz()">Recommencer</button>
+      </div>
+    `;
+    return;
+  }
+  const q = quizQuestions[quizIndex];
+  container.innerHTML = `
+    <div class="quiz-header">
+      <span class="quiz-progress">Question ${quizIndex + 1} / ${quizQuestions.length}</span>
+      <span class="quiz-score">Score : ${quizScore}</span>
+    </div>
+    <div class="quiz-card">
+      <div class="quiz-question">${q.q}</div>
+      <div class="quiz-options">
+        ${q.choices.map((c, i) => `<button class="quiz-option" onclick="answerQuiz(${i})">${c}</button>`).join('')}
+      </div>
+      <div class="quiz-feedback" id="qfeedback"></div>
+      <button class="quiz-next" id="qnext" onclick="nextQuestion()">
+        ${quizIndex + 1 < quizQuestions.length ? 'Question suivante →' : 'Voir les résultats'}
+      </button>
+    </div>
+  `;
+}
+
+function answerQuiz(chosen) {
+  if (document.querySelector('.quiz-option.correct')) return;
+  const q = quizQuestions[quizIndex];
+  const options = document.querySelectorAll('.quiz-option');
+  options.forEach((btn, i) => {
+    btn.disabled = true;
+    if (i === q.correct) btn.classList.add('correct');
+    else if (i === chosen) btn.classList.add('wrong');
+  });
+  const feedback = document.getElementById('qfeedback');
+  const isCorrect = chosen === q.correct;
+  if (isCorrect) quizScore++;
+  feedback.className = 'quiz-feedback show ' + (isCorrect ? 'ok' : 'ko');
+  feedback.innerHTML = (isCorrect ? '✅ Correct ! ' : '❌ Incorrect. ') + q.expl;
+  document.getElementById('qnext').classList.add('show');
+}
+
+function nextQuestion() {
+  quizIndex++;
+  renderQuiz();
+}
+
+// ════════════ MODAL ════════════
+function openModal(id) {
+  const j = jurisdictions[id];
+  if (!j) return;
+  const content = document.getElementById('modal-content');
+  content.innerHTML = `
+    <h2 style="color:${j.color}">${j.name}</h2>
+    <div class="modal-cat">${j.cat}</div>
+    <div class="modal-section">
+      <h4>Résumé</h4>
+      <p>${j.resume}</p>
+    </div>
+    ${j.siege ? `<div class="modal-section"><h4>Siège / Nombre</h4><p>${j.siege}</p></div>` : ''}
+    ${j.composition ? `<div class="modal-section"><h4>Composition</h4><ul>${j.composition.map(c => `<li>${c}</li>`).join('')}</ul></div>` : ''}
+    ${j.competences ? `<div class="modal-section"><h4>Compétences</h4><ul>${j.competences.map(c => `<li>${c}</li>`).join('')}</ul></div>` : ''}
+    ${j.astuce ? `<div class="modal-section" style="margin-top:20px;background:#0f172a;border:1px solid #334155;border-left:4px solid ${j.color};border-radius:8px;padding:14px 18px;"><h4 style="color:${j.color}">💡 Astuce / À retenir</h4><p style="margin-top:6px;">${j.astuce}</p></div>` : ''}
+  `;
+  document.getElementById('overlay').classList.add('open');
+}
+
+function closeModal(e) {
+  if (e === true || e.target === document.getElementById('overlay')) {
+    document.getElementById('overlay').classList.remove('open');
+  }
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(true); });
+</script>
+</body>
+</html>
